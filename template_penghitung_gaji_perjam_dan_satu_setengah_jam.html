@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Penghitung Gaji Per Jam</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #333;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      display: block;
+      color: #444;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    table th,
+    table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    table th {
+      background: #2563eb;
+      color: white;
+    }
+
+    .summary {
+      margin-top: 25px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+    }
+
+    .card {
+      background: #eef4ff;
+      padding: 18px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      color: #1e40af;
+    }
+
+    .card p {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+      color: #111827;
+    }
+
+    .delete-btn {
+      background: #dc2626;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .delete-btn:hover {
+      background: #b91c1c;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Template Penghitung Gaji Per Jam</h1>
+
+    <div class="form-grid">
+      <div>
+        <label>Nama</label>
+        <input type="text" id="nama" placeholder="Masukkan nama" />
+      </div>
+
+      <div>
+        <label>Tanggal</label>
+        <input type="date" id="tanggal" />
+      </div>
+
+      <div>
+        <label>Jam Kerja</label>
+        <input type="number" id="jam" placeholder="Contoh: 8" />
+      </div>
+
+      <div>
+        <label>Tarif Per Jam</label>
+        <input type="number" id="tarif" value="35000" placeholder="Contoh: 35000" />
+      </div>
+
+      <div>
+        <label>Jam 1.5x</label>
+        <input type="number" id="jam15" placeholder="Contoh: 2" />
+      </div>
+
+      <div>
+        <label>Tarif 1.5x Per Jam</label>
+        <input type="number" id="tarif15" value="40000" placeholder="Contoh: 40000" />
+      </div>
+
+      <div>
+        <label>Extra Gaji</label>
+        <input type="number" id="extra" placeholder="Contoh: 50000" />
+      </div>
+
+      <div>
+        <label>Keterangan Extra</label>
+        <input type="text" id="keterangan" placeholder="Bonus / Uang makan" />
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+      <button onclick="tambahData()">Tambah Data</button>
+      <button onclick="exportPDF()">Export PDF Per Nama</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Nama</th>
+          <th>Tanggal</th>
+          <th>Jam Normal</th>
+          <th>Jam 1.5x</th>
+          <th>Tarif 1.5x</th>
+          <th>Extra Gaji</th>
+          <th>Keterangan</th>
+          <th>Total Harian</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+
+    <div class="summary">
+      <div class="card">
+        <h3>Total Hari Ini</h3>
+        <p id="totalHarian">Rp 0</p>
+      </div>
+
+      <div class="card">
+        <h3>Total Bulan Ini</h3>
+        <p id="totalBulanan">Rp 0</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let dataGaji = [];
+
+    function formatRupiah(angka) {
+      return 'Rp ' + angka.toLocaleString('id-ID');
+    }
+
+    function tambahData() {
+      const nama = document.getElementById('nama').value;
+      const tanggal = document.getElementById('tanggal').value;
+      const jam = parseFloat(document.getElementById('jam').value) || 0;
+      const tarif = parseFloat(document.getElementById('tarif').value) || 0;
+      const jam15 = parseFloat(document.getElementById('jam15').value) || 0;
+      const tarif15 = parseFloat(document.getElementById('tarif15').value) || 0;
+      const extra = parseFloat(document.getElementById('extra').value) || 0;
+      const keterangan = document.getElementById('keterangan').value || '-';
+
+      if (!nama || !tanggal || tarif <= 0) {
+        alert('Lengkapi data terlebih dahulu!');
+        return;
+      }
+
+      const totalNormal = jam * tarif;
+      const total15 = jam15 * tarif15;
+      const total = totalNormal + total15 + extra;
+
+      dataGaji.push({
+        nama,
+        tanggal,
+        jam,
+        jam15,
+        tarif15,
+        extra,
+        keterangan,
+        total
+      });
+
+      renderTable();
+      hitungTotal();
+
+      document.getElementById('nama').value = '';
+      document.getElementById('tanggal').value = '';
+      document.getElementById('jam').value = '';
+      document.getElementById('tarif').value = '35000';
+      document.getElementById('jam15').value = '';
+      document.getElementById('tarif15').value = '40000';
+      document.getElementById('extra').value = '';
+      document.getElementById('keterangan').value = '';
+    }
+
+    function renderTable() {
+      const tableBody = document.getElementById('tableBody');
+      tableBody.innerHTML = '';
+
+      dataGaji.forEach((item, index) => {
+        tableBody.innerHTML += `
+          <tr>
+            <td>${item.nama}</td>
+            <td>${item.tanggal}</td>
+            <td>${item.jam} Jam</td>
+            <td>${item.jam15} Jam</td>
+            <td>${formatRupiah(item.tarif15)}</td>
+            <td>${formatRupiah(item.extra)}</td>
+            <td>${item.keterangan}</td>
+            <td>${formatRupiah(item.total)}</td>
+            <td>
+              <button class="delete-btn" onclick="hapusData(${index})">Hapus</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function hitungTotal() {
+      const today = new Date().toISOString().split('T')[0];
+      const bulanIni = today.slice(0, 7);
+
+      let totalHari = 0;
+      let totalBulan = 0;
+
+      dataGaji.forEach(item => {
+        if (item.tanggal === today) {
+          totalHari += item.total;
+        }
+
+        if (item.tanggal.startsWith(bulanIni)) {
+          totalBulan += item.total;
+        }
+      });
+
+      document.getElementById('totalHarian').innerText = formatRupiah(totalHari);
+      document.getElementById('totalBulanan').innerText = formatRupiah(totalBulan);
+    }
+
+    function hapusData(index) {
+      dataGaji.splice(index, 1);
+      renderTable();
+      hitungTotal();
+    }
+
+    function exportPDF() {
+      const namaExport = prompt('Masukkan nama yang ingin di export PDF:');
+
+      if (!namaExport) {
+        return;
+      }
+
+      const hasil = dataGaji.filter(item =>
+        item.nama.toLowerCase() === namaExport.toLowerCase()
+      );
+
+      if (hasil.length === 0) {
+        alert('Data tidak ditemukan');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text('Laporan Gaji - ' + namaExport, 14, 20);
+
+      let y = 35;
+      let totalKeseluruhan = 0;
+
+      hasil.forEach((item, index) => {
+        doc.setFontSize(11);
+        doc.text(`${index + 1}. Tanggal: ${item.tanggal}`, 14, y);
+        y += 8;
+
+        doc.text(`Jam Normal: ${item.jam} Jam`, 20, y);
+        y += 8;
+
+        doc.text(`Jam 1.5x: ${item.jam15} Jam`, 20, y);
+        y += 8;
+
+        doc.text(`Tarif 1.5x: ${formatRupiah(item.tarif15)}`, 20, y);
+        y += 8;
+
+        doc.text(`Extra Gaji: ${formatRupiah(item.extra)}`, 20, y);
+        y += 8;
+
+        doc.text(`Keterangan: ${item.keterangan}`, 20, y);
+        y += 8;
+
+        doc.text(`Total: ${formatRupiah(item.total)}`, 20, y);
+        y += 12;
+
+        totalKeseluruhan += item.total;
+
+        if (y > 260) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+
+      doc.setFontSize(14);
+      doc.text('Total Keseluruhan: ' + formatRupiah(totalKeseluruhan), 14, y + 10);
+
+      doc.save(`Laporan_Gaji_${namaExport}.pdf`);
+    }
+  </script>
+</body>
+</html>
